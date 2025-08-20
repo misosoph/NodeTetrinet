@@ -102,7 +102,7 @@ var availableRooms = {};
 
 var getOpenRoomList = function() {
   var res = [];
-  for (key in availableRooms) {
+  for (var key in availableRooms) {
     res.push({'name': key, 'owner': availableRooms[key].owner});
   }
   return res;
