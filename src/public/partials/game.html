@@ -16,45 +16,63 @@
 			<a ng-click="launchGame()" class="btn btn-large">Launch the game</a>
 		</div>
 
-		<div class="hidden-on-desktop">
-			<div ng-show="gameState == 'on'">
-				<div class="btn" ng-click="sendGameEvent(3)">
-					<i class="icon-arrow-left icon-2x"></i>
-				</div>
+                <div class="hidden-on-desktop">
+                        <div ng-show="gameState == 'on'">
+                                <div class="btn" ng-click="sendGameEvent(3)">
+                                        <i class="icon-arrow-left icon-2x"></i>
+                                </div>
 				<div class="btn" ng-click="sendGameEvent(5)">
 					<i class="icon-arrow-down icon-2x"></i>
 				</div>
-				<div class="btn" ng-click="sendGameEvent(4)">
-					<i class="icon-arrow-right icon-2x"></i>
-				</div>
-				<div class="btn pull-right" ng-click="sendGameEvent(1)">
-					<i class="icon-repeat icon-2x"></i>
-				</div>
-			</div>
-		</div>
+                                <div class="btn" ng-click="sendGameEvent(4)">
+                                        <i class="icon-arrow-right icon-2x"></i>
+                                </div>
+                                <div class="btn" ng-click="sendGameEvent(5)">
+                                        <i class="icon-hand-down icon-2x"></i>
+                                </div>
+                                <div class="btn pull-right" ng-click="sendGameEvent(1)">
+                                        <i class="icon-repeat icon-2x"></i>
+                                </div>
+                        </div>
+                </div>
 	</div>
 
-	<div class="span5 hidden-on-phone">	
-		<div  ng-include="'partials/chat.html'"></div>
+        <div class="span5 hidden-on-phone">
+                <div  ng-include="'partials/chat.html'"></div>
 
-		
 
-	</div>
-	<div class="span4 hidden-on-phone">
-		<h2>GameZone</h2>
-		<div ng-repeat="(nickname, opt) in gameFields" class="span2">
 
-			<table class="game-zone"  ng-class="{gray: opt.status =='gameover'}">
-				<tr ng-repeat="line in opt.zone">
-					<td ng-repeat="cell in line" ng-class="getClassFor(cell.val)" class="game-mini-cell">
+        </div>
+        <div class="span4">
+                <h2>GameZone</h2>
+                <div ng-repeat="(nickname, opt) in gameFields" class="span2">
 
-					</td>
-				</tr>
-			</table>
-			{{nickname}} / {{opt.status}}
-		</div>
-	</div>
-	
+                        <table class="game-zone"  ng-class="{gray: opt.status =='gameover'}">
+                                <tr ng-repeat="line in opt.zone">
+                                        <td ng-repeat="cell in line" ng-class="getClassFor(cell.val)" class="game-mini-cell">
 
-	
+                                        </td>
+                                </tr>
+                        </table>
+                        {{nickname}} / {{opt.status}}
+                </div>
+
+                <div class="special-panel" ng-show="specialInventory.length">
+                        <h3>Special blocks</h3>
+                        <div class="alert" ng-show="specialMessage">{{specialMessage}}</div>
+                        <label>Target</label>
+                        <select ng-model="selectedTarget" ng-options="opponent for opponent in getOpponentList()">
+                                <option value="">Choose opponent</option>
+                        </select>
+                        <div class="special-grid">
+                                <button class="btn btn-small" ng-repeat="special in specialInventory"
+                                        ng-click="useSpecial(special, selectedTarget)" ng-disabled="!selectedTarget">
+                                        {{getSpecialLabel(special)}}
+                                </button>
+                        </div>
+                </div>
+        </div>
+
+
+
 </div>

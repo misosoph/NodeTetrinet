@@ -12,15 +12,22 @@ tetris.GameEventEnum = {
 }
 
 tetris.BlockType = {
-	EMPTY: 0,
-	GREY: 1,
-	CYAN: 2,
-	GREEN: 3,
-	RED: 4,
-	BLUE: 5,
-	PURPLE: 6,
-	YELLOW: 7,
-	GHOST: 999
+        EMPTY: 0,
+        GREY: 1,
+        CYAN: 2,
+        GREEN: 3,
+        RED: 4,
+        BLUE: 5,
+        PURPLE: 6,
+        YELLOW: 7,
+        GHOST: 999
+}
+
+tetris.SpecialBlock = {
+        ADD_TWO: 'add-two',
+        ADD_FOUR: 'add-four',
+        CLEAR_BOTTOM: 'clear-bottom',
+        RANDOM_HOLES: 'random-holes'
 }
 
 
@@ -75,18 +82,31 @@ function GameCtrl($scope, $http, $location, $rootScope, $timeout, $routeParams) 
 		__mapOfBinding.push(binding);
 	}
 
-	$scope.gameState = "";
+        $scope.gameState = "";
+
+        $scope.specialInventory = [];
+        $scope.specialMessage = '';
 
 
-	socket.on('start', function(message) {
-		socket.emit('updateGameField', $scope.hiddenZone);
+        socket.on('start', function(message) {
+                socket.emit('updateGameField', $scope.hiddenZone);
 
 		console.log("start receive");
 
 		$scope.gameState = "on";
-		$scope.askNewBlock();
-		sendDropTick();
-	});
+                $scope.askNewBlock();
+                sendDropTick();
+        });
+
+        socket.on('special', function(opt) {
+                if (!opt || !opt.type) {
+                        return;
+                }
+                $scope.$apply(function() {
+                        $scope.specialMessage = opt.from ? (opt.from+" used a special block!") : 'Special block received!';
+                        $scope.hiddenZone = applySpecialEffect($scope.hiddenZone, opt.type);
+                });
+        });
 
 	socket.on("addLines", function(nbline, eventType) {
 		console.log("addLines"+nbline);
@@ -103,9 +123,9 @@ function GameCtrl($scope, $http, $location, $rootScope, $timeout, $routeParams) 
 
 	$scope.gameFields = {};
 
-	$scope.sendGameField = function() {
-		socket.emit('updateGameField', $scope.hiddenZone);
-	}
+        $scope.sendGameField = function() {
+                socket.emit('updateGameField', $scope.hiddenZone);
+        }
 
 	socket.on('updateGameField' , function(opt, eventType) {
 		//console.log('updateGAMEFIELD !!!')
@@ -524,11 +544,11 @@ function GameCtrl($scope, $http, $location, $rootScope, $timeout, $routeParams) 
 
 	}
 
-	function addAnnoyingLine(zone, l, holeIndex) {
-		var returnZone = cloneZone(zone);
-		for (var i = 0; i <= l; i++) {
-			returnZone[i-1] = returnZone[i].slice(0);
-		};
+        function addAnnoyingLine(zone, l, holeIndex) {
+                var returnZone = cloneZone(zone);
+                for (var i = 0; i <= l; i++) {
+                        returnZone[i-1] = returnZone[i].slice(0);
+                };
 
 		//recreate line where eveything begin
 		for (var j = 0; j< 14; j++) {
@@ -558,7 +578,7 @@ function GameCtrl($scope, $http, $location, $rootScope, $timeout, $routeParams) 
 	}
 
 
-	function checkAndRemoveFullLine(zone) {
+        function checkAndRemoveFullLine(zone) {
 
 		var returnZone = cloneZone(zone);
 
@@ -575,12 +595,58 @@ function GameCtrl($scope, $http, $location, $rootScope, $timeout, $routeParams) 
 			}
 		}
 
-		if (lineCounter > 0) {
-			socket.emit('line',lineCounter);
-		}
+                if (lineCounter > 0) {
+                        socket.emit('line',lineCounter);
+                        if (lineCounter >= 2) {
+                                addSpecialToInventory(lineCounter);
+                        }
+                }
 
-		return returnZone;
-	}
+                return returnZone;
+        }
+
+        function clearBottomLines(zone, count) {
+                var returnZone = cloneZone(zone);
+                for (var i = 0; i < count; i++) {
+                        returnZone = removeLine(returnZone, 21);
+                }
+                return returnZone;
+        }
+
+        function punchRandomHoles(zone, holes) {
+                var returnZone = cloneZone(zone);
+                for (var h = 0; h < holes; h++) {
+                        var lineIndex = Math.floor(Math.random()*18)+3;
+                        var cellIndex = Math.floor(Math.random()*10)+2;
+                        returnZone[lineIndex][cellIndex] = tetris.BlockType.EMPTY;
+                }
+                return returnZone;
+        }
+
+        function applySpecialEffect(zone, specialType) {
+                if (specialType === tetris.SpecialBlock.ADD_TWO) {
+                        return addAnnoyingLines(zone, 2);
+                }
+                if (specialType === tetris.SpecialBlock.ADD_FOUR) {
+                        return addAnnoyingLines(zone, 4);
+                }
+                if (specialType === tetris.SpecialBlock.CLEAR_BOTTOM) {
+                        return clearBottomLines(zone, 2);
+                }
+                if (specialType === tetris.SpecialBlock.RANDOM_HOLES) {
+                        return punchRandomHoles(zone, 6);
+                }
+                return zone;
+        }
+
+        function addSpecialToInventory(lineCounter) {
+                var specialPool = [tetris.SpecialBlock.ADD_TWO, tetris.SpecialBlock.ADD_FOUR, tetris.SpecialBlock.CLEAR_BOTTOM, tetris.SpecialBlock.RANDOM_HOLES];
+                var chosen = specialPool[Math.floor(Math.random()*specialPool.length)];
+                if ($scope.specialInventory.length >= 6) {
+                        $scope.specialInventory.shift();
+                }
+                $scope.specialInventory.push({type: chosen, earnedWith: lineCounter});
+        }
 
 
 	function getDroppedBlock(block) {
@@ -663,9 +729,48 @@ function GameCtrl($scope, $http, $location, $rootScope, $timeout, $routeParams) 
 		return returnZone;
 	}
 
-	$scope.sendGameEvent = function(event) {
-		$rootScope.$broadcast('gameEvent', event);
-	}
+        $scope.sendGameEvent = function(event) {
+                $rootScope.$broadcast('gameEvent', event);
+        }
+
+        $scope.useSpecial = function(special, target) {
+                if (!special || !target) {
+                        return;
+                }
+
+                socket.emit('special', {type: special.type, target: target});
+                $scope.specialMessage = 'Used special on '+target;
+                $scope.specialInventory = _.without($scope.specialInventory, special);
+        }
+
+        $scope.getOpponentList = function() {
+                var opponents = [];
+                angular.forEach($scope.gameFields, function(opt, nickname) {
+                        if (nickname !== $rootScope.nickname) {
+                                opponents.push(nickname);
+                        }
+                });
+                return opponents;
+        }
+
+        $scope.getSpecialLabel = function(special) {
+                if (!special) {
+                        return '';
+                }
+                if (special.type === tetris.SpecialBlock.ADD_TWO) {
+                        return '+2 lines';
+                }
+                if (special.type === tetris.SpecialBlock.ADD_FOUR) {
+                        return '+4 lines';
+                }
+                if (special.type === tetris.SpecialBlock.CLEAR_BOTTOM) {
+                        return 'Clear bottom';
+                }
+                if (special.type === tetris.SpecialBlock.RANDOM_HOLES) {
+                        return 'Random holes';
+                }
+                return special.type;
+        }
 
 	$scope.init = function() {
 		//init game
@@ -685,15 +790,19 @@ function GameCtrl($scope, $http, $location, $rootScope, $timeout, $routeParams) 
 				$scope.hiddenZone[22][j] = 1;
 			}
 
-		for (var j = 0; j< 14; j++) {
-				$scope.hiddenZone[23][j] = 1;
-			}	
+                for (var j = 0; j< 14; j++) {
+                                $scope.hiddenZone[23][j] = 1;
+                        }
 
-		//need to find a better way than cloning zone
-		$scope.zone = cloneZone($scope.hiddenZone);
-		applyZoneWithVal($scope.hiddenZone, $scope.zone);
-		
-	}
+                //need to find a better way than cloning zone
+                $scope.zone = cloneZone($scope.hiddenZone);
+                applyZoneWithVal($scope.hiddenZone, $scope.zone);
+
+                $scope.specialInventory = [];
+                $scope.specialMessage = '';
+                $scope.selectedTarget = '';
+
+        }
 
 
 	/**
