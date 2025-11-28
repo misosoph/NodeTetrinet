@@ -241,7 +241,7 @@ io.of('/game')
 
       socket.on('line', function(nbLine) {
         //doesn't work
-        //io.of('/game').in(roomN).except(socket).emit('addLines', nbLine); 
+        //io.of('/game').in(roomN).except(socket).emit('addLines', nbLine);
        /* for (var id in io.of('/game').clients(roomN)) {
           var loopSockId = io.of('/game').clients(roomN)[id].id
           if(socket.id !== loopSockId) {
@@ -254,7 +254,25 @@ io.of('/game')
         } else {
           sendToAllButYou('addLines', nbLine, '/game', roomN, socket.id);  
         }
-        
+
+      });
+
+      socket.on('special', function(payload) {
+        var target = payload && payload.target;
+        var type = payload && payload.type;
+        if (!target || !type) {
+          return;
+        }
+
+        for (var id in io.of('/game').clients(roomN)) {
+          var targetSocket = io.of('/game').clients(roomN)[id];
+          if (targetSocket.nickname === target) {
+            io.of('/game').in(roomN).socket(targetSocket.id).emit('special', {
+              type: type,
+              from: nickname
+            });
+          }
+        }
       });
 
       var sendToAllButYou = function(msgType, msgContent, of, room, socketId) {
